@@ -176,11 +176,41 @@ func bytesTrimSpace(b []byte) []byte {
 }
 
 func extractLedgerKeysFromEnvelope(env *xdr.TransactionEnvelope) ([]string, error) {
-	// Best-effort extraction: for Soroban invoke operations, footprint lives in SorobanTransactionDataExt
-	// which is not always present / easy to reconstruct without full parsing.
-	// For now we return an empty list, letting simulation rely on internal defaults (may reduce accuracy).
-	//
-	// TODO: Implement full footprint extraction via soroban tx data when available.
-	_ = env
-	return []string{}, nil
+	var tx *xdr.Transaction
+	switch env.Type {
+	case xdr.EnvelopeTypeEnvelopeTypeTx:
+		if env.V1 != nil {
+			tx = &env.V1.Tx
+		}
+	case xdr.EnvelopeTypeEnvelopeTypeTxFeeBump:
+		if env.FeeBump != nil && env.FeeBump.Tx.InnerTx.V1 != nil {
+			tx = &env.FeeBump.Tx.InnerTx.V1.Tx
+		}
+	default:
+		return []string{}, nil
+	}
+
+	if tx == nil || tx.Ext.V != 1 || tx.Ext.SorobanData == nil {
+		return []string{}, nil
+	}
+
+	footprint := tx.Ext.SorobanData.Resources.Footprint
+	keys := make([]string, 0, len(footprint.ReadOnly)+len(footprint.ReadWrite))
+
+	for _, k := range footprint.ReadOnly {
+		encoded, err := rpc.EncodeLedgerKey(k)
+		if err != nil {
+			continue
+		}
+		keys = append(keys, encoded)
+	}
+	for _, k := range footprint.ReadWrite {
+		encoded, err := rpc.EncodeLedgerKey(k)
+		if err != nil {
+			continue
+		}
+		keys = append(keys, encoded)
+	}
+
+	return keys, nil
 }
