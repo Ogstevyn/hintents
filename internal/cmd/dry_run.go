@@ -74,7 +74,7 @@ func runDryRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate envelope is parseable
-	envBytes, err := base64.StdEncoding.DecodeString(envXdrB64)
+	envBytes, err := base64.StdEncoding.Strict().DecodeString(envXdrB64)
 	if err != nil {
 		return errors.WrapUnmarshalFailed(err, "envelope base64")
 	}
