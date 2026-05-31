@@ -45,6 +45,8 @@ Example:
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		// Validate network flag
 		switch rpc.Network(dryRunNetworkFlag) {
+		case rpc.Testnet, rpc.Mainnet, rpc.Futurenet:
+			return nil
 		default:
 			return errors.WrapInvalidNetwork(dryRunNetworkFlag)
 		}
